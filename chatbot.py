@@ -40,18 +40,18 @@ st.markdown(
 # sidebar controls 
 
 with st.sidebar:
-    st.title("⚙️ Controls")
+    st.title("Controls")
     max_new = st.slider("Max new tokens", 20, 1_000, 150, 10)
     temp = st.slider("Temperature", 0.1, 1.0, 0.7, 0.05)
     dark_mode = st.checkbox("Dark mode", value=dark)
     if dark_mode != dark:
         st.session_state.dark = dark_mode
         st.rerun()
-    if st.button("🗑️  Clear chat"):
+    if st.button("Clear chat"):
         st.session_state.chat_history = []
         st.rerun()
     if st.download_button(
-        label="💾 Download chat",
+        label="Download chat",
         data=json.dumps(st.session_state.chat_history, indent=2),
         file_name=f"chat_{datetime.now():%Y-%m-%d_%H-%M}.json",
         mime="application/json",
@@ -60,7 +60,7 @@ with st.sidebar:
 
 # main title
 
-st.title("🤖 Morris – SE Chatbot")
+st.title("Morris  SE Chatbot")
 st.caption("Ask me anything about software engineering.")
 
 # load model (cached)
