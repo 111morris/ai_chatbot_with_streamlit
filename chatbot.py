@@ -69,13 +69,13 @@ st.caption("Ask me anything about software engineering.")
 # load model (cached)
 @st.cache_resource(show_spinner=True)
 def load_model():
-    model_name = "google/gemma-2b-it"
+    model_name = "mistralai/Mistral-7B-Instruct-v0.2"
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     pipe = pipeline(
         "text-generation",
         model=model_name,
-        tokenizer=tokenizer,
+        tokenizer=model_name,
         device_map="auto",
     )
     return pipe, tokenizer
