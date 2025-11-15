@@ -80,14 +80,31 @@ SYSTEM_PROMPT = (
     "Answer concisely, use markdown for formatting and fenced code blocks for code."
 )
 
+def get_qa_pairs(history):
+    pairs = []
+    prev = None
+    for role, msg in history:
+        if role == "user":
+            prev = msg
+        elif role == "assistant" and prev is not None:
+            pairs.append((prev, msg))
+            prev = None
+    return pairs
+
 def build_prompt(history, question):
+    SYSTEM_PROMPT = (
+        "You are a helpful assistant for software engineering. "
+        "Answer concisely, use markdown for formatting and fenced code blocks for code."
+    )
     lines = [SYSTEM_PROMPT]
-    for hq, ha in history[-6:]:          # keep last 6 turns
+    qa_pairs = get_qa_pairs(history)
+    for hq, ha in qa_pairs[-6:]:
         lines.append(f"User: {hq}")
         lines.append(f"Assistant: {ha}")
     lines.append(f"User: {question}")
     lines.append("Assistant:")
     return "\n".join(lines)
+
 
 # display chat
 
