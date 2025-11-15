@@ -1,88 +1,125 @@
+# app.py
+import json
+import time
+from datetime import datetime
 import streamlit as st
 from transformers import pipeline
 
-
-st.set_page_config(page_title="Chatbot")
-
-def load_text_generator(): 
-    text_generator = pipeline("text-generation", model="gpt2")
-    text_generator.tokenizer.pad_token = text_generator.tokenizer.eos_token
-    return text_generatoru
-
-SYSTEM_INSTRUCTION = (
-    "You are a helpful assistant for software Engineering",
-    "Answer concisely and to the point",
-    "Use markdown to format your answers",
-    "Use code blocks to format your answers"
+# page config 
+st.set_page_config(
+    page_title="Morris – SE Chatbot",
+    page_icon="🤖",
+    layout="centered"
 )
 
-# Build the convo prompt 
+# session state initialization 
 
-def build_conversation_prompt(chat_history, user_quesion):
-    formated_conversation = []
-    for previous_question, previous_answer in chat_history: 
-        formated_conversation.append(f"User: {previous_question}\nAssistant: {previous_answer}")
-        
-    formated_conversation.append(f"User: {user_quesion}\nAssistant:")
-    return SYSTEM_INSTRUCTION + "\n" + "\n".join(formated_conversation)
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "dark" not in st.session_state:
+    st.session_state.dark = False
 
+# a simple theming mechanism 
 
-st.title("Morris - ChatBot UI")
-st.caption("Ask me anything about software Engineering")
+dark = st.session_state.dark
+theme = {
+    "bg": "#0e1117" if dark else "#ffffff",
+    "fg": "#ffffff" if dark else "#000000",
+    "secondary": "#262730" if dark else "#f0f2f6",
+}
+st.markdown(
+    f"""
+    <style>
+    .stApp {{background-color: {theme["bg"]}; color: {theme["fg"]};}}
+    .css-1d391kg, .css-18e3th9 {{background-color: {theme["secondary"]};}}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-# Sidebar for chat history 
- 
+# sidebar controls 
+
 with st.sidebar:
-    st.header("Model Controls/Config")
-    max_new_tokens = st.slider("Max New Tokens", min_value=20, max_value=1000, value=50, step=10)
-    temperature = st.slider("Temperature", min_value=0.1, max_value=1.0, value=0.5, step=0.1)
-    
-    if st.button("Clear Chat"):
-        st.session_state.chat_history = ["Start new chart"]
-        st.success("Chat history cleared")
-        
-# Display chat history 
-for user_message, ai_reply in st.session_state.chat_history:
-    st.chat_message("user").markdown(user_message)
-    st.chat_message("assistant").markdown(ai_reply)
+    st.title("⚙️ Controls")
+    max_new = st.slider("Max new tokens", 20, 1_000, 150, 10)
+    temp = st.slider("Temperature", 0.1, 1.0, 0.7, 0.05)
+    dark_mode = st.checkbox("Dark mode", value=dark)
+    if dark_mode != dark:
+        st.session_state.dark = dark_mode
+        st.rerun()
+    if st.button("🗑️  Clear chat"):
+        st.session_state.chat_history = []
+        st.rerun()
+    if st.download_button(
+        label="💾 Download chat",
+        data=json.dumps(st.session_state.chat_history, indent=2),
+        file_name=f"chat_{datetime.now():%Y-%m-%d_%H-%M}.json",
+        mime="application/json",
+    ):
+        st.success("Downloaded!")
 
-# User input 
-user_input = st.chat_input("Type your message here...")
+# main title
 
-if user_input:
-    st.chat_message("user").markdown(user_input)
+st.title("🤖 Morris – SE Chatbot")
+st.caption("Ask me anything about software engineering.")
 
-    with st.spinner("Generating response..."):
-        text_generator = load_text_generator(st.session_state.chat_history, user_input)
+# load model (cached)
 
-        generation_output = text_generator(
-            prompt_text, 
-            max_new_tokens=max_new_tokens, 
+@st.cache_resource(show_spinner=False)
+def load_model():
+    pipe = pipeline("text-generation", model="gpt2")
+    pipe.tokenizer.pad_token = pipe.tokenizer.eos_token
+    return pipe
+
+generator = load_model()
+
+# prompt builder 
+
+SYSTEM_PROMPT = (
+    "You are a helpful assistant for software engineering. "
+    "Answer concisely, use markdown for formatting and fenced code blocks for code."
+)
+
+def build_prompt(history, question):
+    lines = [SYSTEM_PROMPT]
+    for hq, ha in history[-6:]:          # keep last 6 turns
+        lines.append(f"User: {hq}")
+        lines.append(f"Assistant: {ha}")
+    lines.append(f"User: {question}")
+    lines.append("Assistant:")
+    return "\n".join(lines)
+
+# display chat
+
+for role, msg in st.session_state.chat_history:
+    with st.chat_message(role):
+        st.markdown(msg)
+
+# user input handling
+
+if prompt := st.chat_input("Type your message here…"):
+    # append user message
+    st.session_state.chat_history.append(("user", prompt))
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # generate answer
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full = ""
+        prompt_text = build_prompt(st.session_state.chat_history, prompt)
+        # stream tokens manually
+        for new_text in generator(
+            prompt_text,
+            max_new_tokens=max_new,
+            temperature=temp,
             do_sample=True,
-            temperature=temperature,
-            pad_token_id=text_generator.tokenizer.eos_token_id,
-            eos_token_id=text_generator.tokenizer.eos_token_id,
-        )[0]['generated_text']
-    
-    # Build the prompt 
-    prompt = build_conversation_prompt(st.session_state.chat_history, user_input)
-    
-    # Load model and generate response 
-    text_generator = load_text_generator()
-    response = text_generator(
-        prompt,
-        max_new_tokens=max_new_tokens,
-        temperature=temperature,
-        pad_token_id=text_generator.tokenizer.eos_token_id
-    )[0]['generated_text']
-    
-    # Extract the assistant's reply from the response
-    if "Assistant:" in generation_output:
-        generated_answer = generation_output.split("Assistant:")[0].strip()
-    
-    # Display assistant's reply 
-    st.chat_message("assistant").markdown(generated_answer)
-    st.session_state.chat_history.append((user_input, generated_answer))
-    
-    # Update chat history 
-    st.session_state.chat_history.append((user_input, assistant_reply))
+            pad_token_id=generator.tokenizer.eos_token_id,
+        )[0]["generated_text"][len(prompt_text) :].split(" "):
+            full += new_text + " "
+            message_placeholder.markdown(full + "▌")
+            time.sleep(0.02)
+        message_placeholder.markdown(full)
+
+    # store assistant answer
+    st.session_state.chat_history.append(("assistant", full.strip()))
