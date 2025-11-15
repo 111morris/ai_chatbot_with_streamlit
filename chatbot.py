@@ -1,5 +1,6 @@
 import streamlit as st
-from tranformers import pipeline 
+from transformers import pipeline
+
 
 st.set_page_config(page_title="Chatbot")
 
