@@ -1,6 +1,5 @@
-streamlit
-transformers
+streamlit==1.38.0
+transformers==4.40.2
 torch
 accelerate
 sentencepiece
-protobuf

@@ -3,7 +3,8 @@ import json
 import time
 from datetime import datetime
 import streamlit as st
-from transformers import pipeline, AutoTokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM, TextStreamer
+
 
 # PAGE CONFIG AND SESSION STATE
 
@@ -72,13 +73,14 @@ def load_model():
     model_name = "mistralai/Mistral-7B-Instruct-v0.2"
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    pipe = pipeline(
-        "text-generation",
-        model=model_name,
-        tokenizer=model_name,
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
         device_map="auto",
+        torch_dtype="auto"
     )
-    return pipe, tokenizer
+
+    return tokenizer, model
+
 
 pipe, tokenizer = load_model()
 
